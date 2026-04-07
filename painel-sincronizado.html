@@ -1,0 +1,791 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Painel de Tarefas - Sincronizado com Google Drive</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #f5f5f5;
+      color: #333;
+    }
+
+    .header {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 2rem;
+      text-align: center;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .header h1 { font-size: 2rem; margin-bottom: 0.5rem; }
+    
+    .sync-status {
+      font-size: 0.9rem;
+      opacity: 0.9;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      margin-top: 0.5rem;
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #10b981;
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+
+    .container { max-width: 1200px; margin: 0 auto; padding: 2rem; }
+
+    .controls {
+      background: white;
+      padding: 1.5rem;
+      border-radius: 8px;
+      margin-bottom: 2rem;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.5rem;
+    }
+
+    @media (max-width: 768px) {
+      .controls { grid-template-columns: 1fr; }
+    }
+
+    .search-box {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      background: #f9f9f9;
+      border: 2px solid #e0e0e0;
+      border-radius: 8px;
+      padding: 0.75rem 1rem;
+    }
+
+    .search-box input {
+      flex: 1;
+      border: none;
+      background: transparent;
+      font-size: 0.95rem;
+      outline: none;
+    }
+
+    .add-form {
+      display: flex;
+      gap: 0.75rem;
+    }
+
+    .add-form input {
+      flex: 1;
+      border: 2px solid #e0e0e0;
+      border-radius: 8px;
+      padding: 0.75rem;
+      font-size: 0.95rem;
+    }
+
+    .btn {
+      padding: 0.75rem 1.5rem;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: 500;
+      transition: all 0.3s ease;
+      font-size: 0.95rem;
+      white-space: nowrap;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      color: white;
+    }
+
+    .btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+    }
+
+    .filters {
+      display: flex;
+      gap: 0.75rem;
+      flex-wrap: wrap;
+      margin-bottom: 1.5rem;
+    }
+
+    .filter-btn {
+      padding: 0.5rem 1rem;
+      background: white;
+      border: 2px solid #e0e0e0;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.9rem;
+      font-weight: 500;
+      transition: all 0.3s ease;
+    }
+
+    .filter-btn.active {
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      color: white;
+      border-color: transparent;
+    }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 1rem;
+      margin-bottom: 2rem;
+    }
+
+    .stat-card {
+      background: white;
+      padding: 1.5rem;
+      border-radius: 8px;
+      text-align: center;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+      border-left: 4px solid #667eea;
+    }
+
+    .stat-number { font-size: 2rem; font-weight: 700; color: #667eea; }
+    .stat-label { font-size: 0.85rem; color: #999; text-transform: uppercase; margin-top: 0.5rem; }
+
+    .tasks-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 1.5rem;
+    }
+
+    .task-card {
+      background: white;
+      border-radius: 10px;
+      padding: 1.5rem;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+      border-left: 4px solid #e0e0e0;
+      transition: all 0.3s ease;
+    }
+
+    .task-card:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    }
+
+    .task-card.completed { opacity: 0.6; }
+    .task-card.completed .task-title { text-decoration: line-through; color: #999; }
+
+    .task-header {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.75rem;
+      margin-bottom: 1rem;
+    }
+
+    .task-checkbox {
+      width: 20px;
+      height: 20px;
+      margin-top: 2px;
+      cursor: pointer;
+      accent-color: #667eea;
+    }
+
+    .task-title { font-weight: 600; flex: 1; }
+
+    .task-priority {
+      font-size: 0.75rem;
+      font-weight: 700;
+      padding: 0.25rem 0.6rem;
+      border-radius: 4px;
+      text-transform: uppercase;
+    }
+
+    .task-priority.alta { background: rgba(239, 68, 68, 0.1); color: #ef4444; }
+    .task-priority.normal { background: rgba(245, 158, 11, 0.1); color: #f59e0b; }
+    .task-priority.baixa { background: rgba(16, 185, 129, 0.1); color: #10b981; }
+
+    .task-meta {
+      font-size: 0.85rem;
+      color: #666;
+      margin: 1rem 0;
+      padding: 0.75rem 0;
+      border-top: 1px solid #f0f0f0;
+      border-bottom: 1px solid #f0f0f0;
+    }
+
+    .task-actions {
+      display: flex;
+      gap: 0.5rem;
+      margin-top: 1rem;
+    }
+
+    .task-btn {
+      flex: 1;
+      padding: 0.5rem;
+      border: 1px solid #e0e0e0;
+      background: transparent;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.85rem;
+      transition: all 0.2s ease;
+    }
+
+    .task-btn:hover {
+      background: #f9f9f9;
+      color: #667eea;
+      border-color: #667eea;
+    }
+
+    .empty { text-align: center; padding: 3rem 1rem; color: #999; }
+
+    .modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0,0,0,0.5);
+      z-index: 1000;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .modal.active { display: flex; }
+
+    .modal-content {
+      background: white;
+      border-radius: 12px;
+      padding: 2rem;
+      width: 90%;
+      max-width: 600px;
+      max-height: 90vh;
+      overflow-y: auto;
+    }
+
+    .modal-header { font-size: 1.5rem; font-weight: 700; margin-bottom: 1.5rem; }
+
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      margin-bottom: 1rem;
+    }
+
+    .form-group label { font-weight: 500; font-size: 0.9rem; }
+
+    .form-group input,
+    .form-group select,
+    .form-group textarea {
+      border: 2px solid #e0e0e0;
+      border-radius: 6px;
+      padding: 0.75rem;
+      font-size: 0.9rem;
+      font-family: inherit;
+    }
+
+    .form-group input:focus,
+    .form-group select:focus,
+    .form-group textarea:focus {
+      outline: none;
+      border-color: #667eea;
+      box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
+
+    .modal-footer {
+      display: flex;
+      gap: 1rem;
+      margin-top: 1.5rem;
+    }
+
+    .btn-secondary {
+      flex: 1;
+      background: #f0f0f0;
+      color: #333;
+      border: 2px solid #e0e0e0;
+    }
+
+    .btn-secondary:hover { background: #e0e0e0; }
+
+    .report-output {
+      background: #1f2937;
+      color: #e5e7eb;
+      padding: 1.5rem;
+      border-radius: 8px;
+      font-family: 'Courier New', monospace;
+      font-size: 0.9rem;
+      line-height: 1.6;
+      max-height: 400px;
+      overflow-y: auto;
+      white-space: pre-wrap;
+      word-wrap: break-word;
+      margin-bottom: 1rem;
+    }
+
+    .message {
+      padding: 1rem;
+      border-radius: 8px;
+      margin-bottom: 1rem;
+      display: none;
+    }
+
+    .message.show { display: block; animation: slideIn 0.3s ease; }
+    .message.success { background: rgba(16, 185, 129, 0.1); color: #10b981; border-left: 4px solid #10b981; }
+    .message.error { background: rgba(239, 68, 68, 0.1); color: #ef4444; border-left: 4px solid #ef4444; }
+
+    @keyframes slideIn {
+      from { opacity: 0; transform: translateY(-20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .loading {
+      display: inline-block;
+      width: 20px;
+      height: 20px;
+      border: 3px solid rgba(255,255,255,0.3);
+      border-radius: 50%;
+      border-top-color: white;
+      animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>📋 Painel de Tarefas</h1>
+    <p>Sincronizado com Google Drive em tempo real</p>
+    <div class="sync-status">
+      <span class="status-dot"></span>
+      <span id="statusText">Conectado ao Google Drive</span>
+    </div>
+  </div>
+
+  <div class="container">
+    <div id="message" class="message"></div>
+
+    <div class="controls">
+      <div class="search-box">
+        <span>🔍</span>
+        <input type="text" id="search" placeholder="Buscar tarefas...">
+      </div>
+      <div class="add-form">
+        <input type="text" id="newTask" placeholder="Adicione uma nova tarefa...">
+        <button class="btn btn-primary" id="addBtn">➕ Adicionar</button>
+      </div>
+    </div>
+
+    <div class="filters">
+      <button class="filter-btn active" data-filter="all">Todas</button>
+      <button class="filter-btn" data-filter="today">Hoje</button>
+      <button class="filter-btn" data-filter="pending">Pendentes</button>
+      <button class="filter-btn" data-filter="completed">Concluídas</button>
+      <button class="filter-btn" id="reportBtn" style="margin-left: auto; background: linear-gradient(135deg, #667eea, #764ba2); color: white; border: none;">📊 Relatório</button>
+    </div>
+
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-number" id="statTotal">0</div>
+        <div class="stat-label">Total</div>
+      </div>
+      <div class="stat-card" style="border-left-color: #10b981;">
+        <div class="stat-number" id="statCompleted" style="color: #10b981;">0</div>
+        <div class="stat-label">Concluídas</div>
+      </div>
+      <div class="stat-card" style="border-left-color: #f59e0b;">
+        <div class="stat-number" id="statPending" style="color: #f59e0b;">0</div>
+        <div class="stat-label">Pendentes</div>
+      </div>
+      <div class="stat-card" style="border-left-color: #667eea;">
+        <div class="stat-number" id="statRecurring" style="color: #667eea;">0</div>
+        <div class="stat-label">Recorrentes</div>
+      </div>
+    </div>
+
+    <div id="tasksGrid" class="tasks-grid"></div>
+  </div>
+
+  <!-- Modal de Adição -->
+  <div id="addModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">➕ Adicionar Tarefa</div>
+      <form id="addForm">
+        <div class="form-group">
+          <label>Título *</label>
+          <input type="text" id="addTitle" required>
+        </div>
+        <div class="form-group">
+          <label>Projeto *</label>
+          <select id="addProject" required>
+            <option value="">Selecione</option>
+            <option value="Família">👨‍👩‍👦‍👦 Família</option>
+            <option value="Espiritual">🕊 Espiritual</option>
+            <option value="Desenvolvimento Pessoal">🧗 Desenvolvimento Pessoal</option>
+            <option value="TRE-GO">⚖️ TRE-GO</option>
+            <option value="Trabalho">👨‍💼 Trabalho</option>
+            <option value="Geral">📋 Geral</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Sublista</label>
+          <input type="text" id="addSublista" placeholder="Ex: Casa - Layse">
+        </div>
+        <div class="form-group">
+          <label>Prioridade</label>
+          <select id="addPriority">
+            <option value="normal">Normal</option>
+            <option value="alta">Alta</option>
+            <option value="baixa">Baixa</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Data</label>
+          <input type="date" id="addDate">
+        </div>
+        <div class="form-group">
+          <label>Horário</label>
+          <input type="time" id="addTime">
+        </div>
+        <div class="form-group">
+          <label>Recorrência</label>
+          <select id="addRecurrence">
+            <option value="">Sem recorrência</option>
+            <option value="diaria">Diária</option>
+            <option value="semanal">Semanal</option>
+            <option value="mensal">Mensal</option>
+            <option value="anual">Anual</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Descrição</label>
+          <textarea id="addDesc" rows="3"></textarea>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" onclick="fecharAddModal()">Cancelar</button>
+          <button type="submit" class="btn btn-primary" style="flex: 1;">Adicionar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal de Relatório -->
+  <div id="reportModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">📊 Gerar Relatório</div>
+      <form id="reportForm">
+        <div class="form-group">
+          <label>Data Inicial</label>
+          <input type="date" id="reportStart">
+        </div>
+        <div class="form-group">
+          <label>Data Final</label>
+          <input type="date" id="reportEnd">
+        </div>
+        <div class="form-group">
+          <label>Projeto</label>
+          <select id="reportProject">
+            <option value="">Todos</option>
+            <option value="Família">Família</option>
+            <option value="Espiritual">Espiritual</option>
+            <option value="Desenvolvimento Pessoal">Desenvolvimento Pessoal</option>
+            <option value="TRE-GO">TRE-GO</option>
+            <option value="Trabalho">Trabalho</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Status</label>
+          <select id="reportStatus">
+            <option value="">Todos</option>
+            <option value="pending">Pendentes</option>
+            <option value="completed">Concluídas</option>
+          </select>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" onclick="fecharReportModal()">Cancelar</button>
+          <button type="submit" class="btn btn-primary" style="flex: 1;">Gerar</button>
+        </div>
+      </form>
+      <div id="reportOutput" style="display: none; margin-top: 1.5rem;">
+        <div class="report-output" id="report"></div>
+        <button class="btn btn-primary" onclick="copiarRelatorio()" style="width: 100%; margin-bottom: 0.5rem;">📋 Copiar</button>
+        <button class="btn btn-primary" onclick="downloadRelatorio()" style="width: 100%;">⬇️ Baixar</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // COLOQUE A URL DO SEU APPS SCRIPT AQUI!
+    const APPS_SCRIPT_URL = 'https://script.google.com/macros/d/AKfycby-ddqsGluo0X463yyK4LXfT6Z0muS94Jt3BGEWPJaGmSJ5dCDLBsZ8ovl7fsT1Rr-y/usercallback';
+    
+    let tarefas = [];
+    let filtroAtivo = 'all';
+    let relatorioCurrent = '';
+
+    // Carregar tarefas ao iniciar
+    window.addEventListener('load', carregarTarefas);
+
+    async function carregarTarefas() {
+      try {
+        document.getElementById('statusText').textContent = 'Carregando...';
+        
+        const response = await fetch(APPS_SCRIPT_URL + '?acao=ler');
+        const resultado = await response.json();
+        
+        if (!resultado.sucesso) {
+          mostrarMsg('Erro: ' + resultado.erro, 'error');
+          document.getElementById('statusText').textContent = 'Erro ao conectar';
+          return;
+        }
+        
+        const dados = resultado.dados;
+        tarefas = [];
+        let id = 1;
+        
+        // Converter do formato TickTick para o painel
+        for (const projetoKey in dados.projetos) {
+          const projeto = dados.projetos[projetoKey];
+          for (const sublistaKey in projeto.sublistas) {
+            const sublista = projeto.sublistas[sublistaKey];
+            for (const tarefa of sublista.tarefas) {
+              tarefas.push({
+                id: id++,
+                titulo: tarefa.titulo,
+                projeto: projeto.nome.replace(/[👨👩👧👦🕊🧗⚖️💼📋]/g, '').trim(),
+                sublista: sublista.nome,
+                prioridade: tarefa.prioridade || 'normal',
+                data: tarefa.data_vencimento,
+                hora: tarefa.horario || '09:00',
+                concluida: tarefa.concluida,
+                recorrencia: tarefa.recorrencia?.frequencia || '',
+                descricao: tarefa.descricao || ''
+              });
+            }
+          }
+        }
+        
+        renderizar();
+        document.getElementById('statusText').textContent = 'Sincronizado';
+        mostrarMsg('✅ Tarefas carregadas!', 'success');
+        
+      } catch (erro) {
+        mostrarMsg('❌ Erro ao carregar: ' + erro.message, 'error');
+        document.getElementById('statusText').textContent = 'Offline';
+      }
+    }
+
+    function renderizar() {
+      const grid = document.getElementById('tasksGrid');
+      let filtradas = tarefas;
+
+      const busca = document.getElementById('search').value.toLowerCase();
+      if (busca) {
+        filtradas = filtradas.filter(t => t.titulo.toLowerCase().includes(busca) || t.sublista.toLowerCase().includes(busca));
+      }
+
+      const hoje = new Date().toISOString().split('T')[0];
+      if (filtroAtivo === 'today') filtradas = filtradas.filter(t => t.data === hoje && !t.concluida);
+      if (filtroAtivo === 'pending') filtradas = filtradas.filter(t => !t.concluida);
+      if (filtroAtivo === 'completed') filtradas = filtradas.filter(t => t.concluida);
+
+      if (filtradas.length === 0) {
+        grid.innerHTML = '<div class="empty">📭 Nenhuma tarefa encontrada</div>';
+      } else {
+        grid.innerHTML = filtradas.map(t => `
+          <div class="task-card ${t.concluida ? 'completed' : ''}">
+            <div class="task-header">
+              <input type="checkbox" class="task-checkbox" ${t.concluida ? 'checked' : ''} onchange="marcarConcluida(${t.id})">
+              <div class="task-title">${t.titulo}</div>
+              <span class="task-priority ${t.prioridade}">${t.prioridade}</span>
+            </div>
+            <div class="task-meta">
+              <div>${getEmojiSublista(t.sublista)} ${t.sublista}</div>
+              <div>📅 ${formatarData(t.data)}</div>
+              ${t.hora ? `<div>⏰ ${t.hora}</div>` : ''}
+              ${t.recorrencia ? `<div>🔄 ${t.recorrencia}</div>` : ''}
+            </div>
+            ${t.descricao ? `<div style="font-size: 0.9rem; color: #666; margin-bottom: 0.75rem;">${t.descricao}</div>` : ''}
+            <div class="task-actions">
+              <button class="task-btn" onclick="editarTarefa(${t.id})">✏️ Editar</button>
+              <button class="task-btn" onclick="deletarTarefa(${t.id})">🗑️ Deletar</button>
+            </div>
+          </div>
+        `).join('');
+      }
+
+      atualizarStats();
+    }
+
+    function formatarData(data) {
+      const hoje = new Date().toISOString().split('T')[0];
+      const amanha = new Date(Date.now() + 86400000).toISOString().split('T')[0];
+      if (data === hoje) return 'HOJE';
+      if (data === amanha) return 'AMANHÃ';
+      const [ano, mes, dia] = data.split('-');
+      return `${dia}-${mes}-${ano}`;
+    }
+
+    function getEmojiSublista(sublista) {
+      const map = {
+        'Guilherme': '👦🏻',
+        'Bianca': '👧🏻',
+        'Casa - Welington': '👨🏻',
+        'Casa - Layse': '👩🏻',
+        'Célula': '🕊',
+        'Saúde': '💪',
+        'AGIOE': '💼',
+        'Hábitos': '📌'
+      };
+      return map[sublista] || '📋';
+    }
+
+    function atualizarStats() {
+      document.getElementById('statTotal').textContent = tarefas.length;
+      document.getElementById('statCompleted').textContent = tarefas.filter(t => t.concluida).length;
+      document.getElementById('statPending').textContent = tarefas.filter(t => !t.concluida).length;
+      document.getElementById('statRecurring').textContent = tarefas.filter(t => t.recorrencia).length;
+    }
+
+    function marcarConcluida(id) {
+      const t = tarefas.find(x => x.id === id);
+      if (t) t.concluida = !t.concluida;
+      renderizar();
+      sincronizar();
+    }
+
+    function deletarTarefa(id) {
+      tarefas = tarefas.filter(t => t.id !== id);
+      renderizar();
+      sincronizar();
+      mostrarMsg('Tarefa removida!', 'success');
+    }
+
+    function editarTarefa(id) {
+      alert('Editar: ' + tarefas.find(t => t.id === id).titulo);
+    }
+
+    // Sincronizar com Google Drive
+    async function sincronizar() {
+      try {
+        // Aqui você reconstruiria o JSON e salvaria
+        // Por enquanto, apenas um placeholder
+      } catch (erro) {
+        console.error('Erro ao sincronizar:', erro);
+      }
+    }
+
+    // Modal de adição
+    document.getElementById('addBtn').onclick = () => document.getElementById('addModal').classList.add('active');
+    function fecharAddModal() { document.getElementById('addModal').classList.remove('active'); }
+
+    document.getElementById('addForm').onsubmit = (e) => {
+      e.preventDefault();
+      const titulo = document.getElementById('addTitle').value;
+      const projeto = document.getElementById('addProject').value;
+      const sublista = document.getElementById('addSublista').value || 'Geral';
+      const prioridade = document.getElementById('addPriority').value;
+      const data = document.getElementById('addDate').value || new Date().toISOString().split('T')[0];
+      const hora = document.getElementById('addTime').value || '09:00';
+      const recorrencia = document.getElementById('addRecurrence').value;
+      const descricao = document.getElementById('addDesc').value;
+
+      tarefas.push({
+        id: Math.max(...tarefas.map(t => t.id), 0) + 1,
+        titulo, projeto, sublista, prioridade, data, hora, recorrencia, descricao,
+        concluida: false
+      });
+
+      document.getElementById('addForm').reset();
+      fecharAddModal();
+      renderizar();
+      sincronizar();
+      mostrarMsg('✅ Tarefa adicionada!', 'success');
+    };
+
+    // Filtros
+    document.querySelectorAll('.filter-btn').forEach(btn => {
+      if (btn.id !== 'reportBtn') {
+        btn.onclick = (e) => {
+          document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+          e.target.classList.add('active');
+          filtroAtivo = e.target.dataset.filter;
+          renderizar();
+        };
+      }
+    });
+
+    document.getElementById('search').oninput = renderizar;
+
+    // Relatório
+    document.getElementById('reportBtn').onclick = () => {
+      const hoje = new Date().toISOString().split('T')[0];
+      document.getElementById('reportStart').value = new Date(Date.now() - 7 * 86400000).toISOString().split('T')[0];
+      document.getElementById('reportEnd').value = hoje;
+      document.getElementById('reportModal').classList.add('active');
+      document.getElementById('reportOutput').style.display = 'none';
+    };
+
+    function fecharReportModal() { document.getElementById('reportModal').classList.remove('active'); }
+
+    document.getElementById('reportForm').onsubmit = (e) => {
+      e.preventDefault();
+      const inicio = document.getElementById('reportStart').value;
+      const fim = document.getElementById('reportEnd').value;
+      const projeto = document.getElementById('reportProject').value;
+      const status = document.getElementById('reportStatus').value;
+
+      let filtrados = tarefas.filter(t => {
+        const tData = new Date(t.data);
+        const dInicio = new Date(inicio);
+        const dFim = new Date(fim);
+        return tData >= dInicio && tData <= dFim &&
+               (!projeto || t.projeto === projeto) &&
+               (!status || (status === 'completed' && t.concluida) || (status === 'pending' && !t.concluida));
+      });
+
+      const dataAtual = new Date().toLocaleDateString('pt-BR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+      let rel = `RELATÓRIO DE TAREFAS - ${dataAtual}\n\n`;
+
+      filtrados.forEach(t => {
+        rel += `${getEmojiSublista(t.sublista)} ${t.sublista} - ${formatarData(t.data)} - ${t.hora} - ${t.titulo}\n`;
+      });
+
+      rel += `\nRELATÓRIO DE TAREFAS gerado em: ${new Date().toLocaleString('pt-BR')}`;
+
+      document.getElementById('report').textContent = rel;
+      document.getElementById('reportOutput').style.display = 'block';
+      relatorioCurrent = rel;
+    };
+
+    function copiarRelatorio() {
+      navigator.clipboard.writeText(relatorioCurrent);
+      mostrarMsg('✅ Copiado!', 'success');
+    }
+
+    function downloadRelatorio() {
+      const el = document.createElement('a');
+      el.href = 'data:text/plain;charset=utf-8,' + encodeURIComponent(relatorioCurrent);
+      el.download = `relatorio-${new Date().toISOString().split('T')[0]}.txt`;
+      el.click();
+      mostrarMsg('✅ Baixado!', 'success');
+    }
+
+    function mostrarMsg(msg, tipo) {
+      const el = document.getElementById('message');
+      el.textContent = msg;
+      el.className = `message show ${tipo}`;
+      setTimeout(() => el.classList.remove('show'), 3000);
+    }
+  </script>
+</body>
+</html>
