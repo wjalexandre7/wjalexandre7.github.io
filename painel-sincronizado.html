@@ -629,14 +629,21 @@
       atualizarStats();
     }
 
-    function formatarData(data) {
-      const hoje = new Date().toISOString().split('T')[0];
-      const amanha = new Date(Date.now() + 86400000).toISOString().split('T')[0];
-      if (data === hoje) return 'HOJE';
-      if (data === amanha) return 'AMANHÃ';
-      const [ano, mes, dia] = data.split('-');
-      return `${dia}-${mes}-${ano}`;
-    }
+function formatarData(data) {
+  if (!data || data === 'undefined' || data === undefined) return 'Sem data';
+  
+  const hoje = new Date().toISOString().split('T')[0];
+  const amanha = new Date(Date.now() + 86400000).toISOString().split('T')[0];
+  
+  if (data === hoje) return 'HOJE';
+  if (data === amanha) return 'AMANHÃ';
+  
+  const partes = data.split('-');
+  if (partes.length !== 3) return data;
+  
+  const [ano, mes, dia] = partes;
+  return `${dia}-${mes}-${ano}`;
+}
 
     function getEmojiSublista(sublista) {
       const map = {
