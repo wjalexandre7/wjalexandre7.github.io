@@ -479,6 +479,69 @@
     </div>
   </div>
 
+  <!-- Modal de Edição -->
+  <div id="editModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">✏️ Editar Tarefa</div>
+      <form id="editForm">
+        <div class="form-group">
+          <label>Título *</label>
+          <input type="text" id="editTitle" required>
+        </div>
+        <div class="form-group">
+          <label>Projeto *</label>
+          <select id="editProject" required>
+            <option value="">Selecione</option>
+            <option value="Família">👨‍👩‍👦‍👦 Família</option>
+            <option value="Espiritual">🕊 Espiritual</option>
+            <option value="Desenvolvimento Pessoal">🧗 Desenvolvimento Pessoal</option>
+            <option value="TRE-GO">⚖️ TRE-GO</option>
+            <option value="Trabalho">👨‍💼 Trabalho</option>
+            <option value="Geral">📋 Geral</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Sublista</label>
+          <input type="text" id="editSublista" placeholder="Ex: Casa - Layse">
+        </div>
+        <div class="form-group">
+          <label>Prioridade</label>
+          <select id="editPriority">
+            <option value="normal">Normal</option>
+            <option value="alta">Alta</option>
+            <option value="baixa">Baixa</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Data</label>
+          <input type="date" id="editDate">
+        </div>
+        <div class="form-group">
+          <label>Horário</label>
+          <input type="time" id="editTime">
+        </div>
+        <div class="form-group">
+          <label>Recorrência</label>
+          <select id="editRecurrence">
+            <option value="">Sem recorrência</option>
+            <option value="diaria">Diária</option>
+            <option value="semanal">Semanal</option>
+            <option value="mensal">Mensal</option>
+            <option value="anual">Anual</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Descrição</label>
+          <textarea id="editDesc" rows="3"></textarea>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" onclick="fecharEditModal()">Cancelar</button>
+          <button type="submit" class="btn btn-primary" style="flex: 1;">Salvar Alterações</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <!-- Modal de Relatório -->
   <div id="reportModal" class="modal">
     <div class="modal-content">
@@ -526,7 +589,7 @@
 
   <script>
     // COLOQUE A URL DO SEU APPS SCRIPT AQUI!
-    const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby-ddqsGluo0X463yyK4LXfT6Z0muS94Jt3BGEWPJaGmSJ5dCDLBsZ8ovl7fsT1Rr-y/exec';
+    const APPS_SCRIPT_URL = 'https://script.google.com/macros/d/SEU_DEPLOYMENT_ID/usercallback';
     
     let tarefas = [];
     let filtroAtivo = 'all';
@@ -539,10 +602,7 @@
       try {
         document.getElementById('statusText').textContent = 'Carregando...';
         
-        const response = await fetch(APPS_SCRIPT_URL + '?acao=ler', {
-        method: 'GET',
-        mode: 'cors'
-        });
+        const response = await fetch(APPS_SCRIPT_URL + '?acao=ler');
         const resultado = await response.json();
         
         if (!resultado.sucesso) {
@@ -561,24 +621,18 @@
           for (const sublistaKey in projeto.sublistas) {
             const sublista = projeto.sublistas[sublistaKey];
             for (const tarefa of sublista.tarefas) {
-              // Corrigir data que pode vir em diferentes formatos
-let dataCorrigida = tarefa.data_vencimento;
-if (!dataCorrigida || dataCorrigida === 'undefined' || typeof dataCorrigida !== 'string' || !dataCorrigida.match(/^\d{4}-\d{2}-\d{2}$/)) {
-  dataCorrigida = new Date().toISOString().split('T')[0];
-}
-
-tarefas.push({
-  id: id++,
-  titulo: tarefa.titulo,
-  projeto: projeto.nome.replace(/[👨👩👧👦🕊🧗⚖️💼📋]/g, '').trim(),
-  sublista: sublista.nome,
-  prioridade: tarefa.prioridade || 'normal',
-  data: dataCorrigida,
-  hora: tarefa.horario || '09:00',
-  concluida: tarefa.concluida,
-  recorrencia: tarefa.recorrencia?.frequencia || '',
-  descricao: tarefa.descricao || ''
-});
+              tarefas.push({
+                id: id++,
+                titulo: tarefa.titulo,
+                projeto: projeto.nome.replace(/[👨👩👧👦🕊🧗⚖️💼📋]/g, '').trim(),
+                sublista: sublista.nome,
+                prioridade: tarefa.prioridade || 'normal',
+                data: tarefa.data_vencimento,
+                hora: tarefa.horario || '09:00',
+                concluida: tarefa.concluida,
+                recorrencia: tarefa.recorrencia?.frequencia || '',
+                descricao: tarefa.descricao || ''
+              });
             }
           }
         }
@@ -635,21 +689,14 @@ tarefas.push({
       atualizarStats();
     }
 
-function formatarData(data) {
-  if (!data || data === 'undefined' || data === undefined) return 'Sem data';
-  
-  const hoje = new Date().toISOString().split('T')[0];
-  const amanha = new Date(Date.now() + 86400000).toISOString().split('T')[0];
-  
-  if (data === hoje) return 'HOJE';
-  if (data === amanha) return 'AMANHÃ';
-  
-  const partes = data.split('-');
-  if (partes.length !== 3) return data;
-  
-  const [ano, mes, dia] = partes;
-  return `${dia}-${mes}-${ano}`;
-}
+    function formatarData(data) {
+      const hoje = new Date().toISOString().split('T')[0];
+      const amanha = new Date(Date.now() + 86400000).toISOString().split('T')[0];
+      if (data === hoje) return 'HOJE';
+      if (data === amanha) return 'AMANHÃ';
+      const [ano, mes, dia] = data.split('-');
+      return `${dia}-${mes}-${ano}`;
+    }
 
     function getEmojiSublista(sublista) {
       const map = {
@@ -686,18 +733,60 @@ function formatarData(data) {
       mostrarMsg('Tarefa removida!', 'success');
     }
 
+    let tarefaEditandoId = null;
+
     function editarTarefa(id) {
-      alert('Editar: ' + tarefas.find(t => t.id === id).titulo);
+      const t = tarefas.find(x => x.id === id);
+      if (!t) return;
+      
+      tarefaEditandoId = id;
+      document.getElementById('editTitle').value = t.titulo;
+      document.getElementById('editProject').value = t.projeto;
+      document.getElementById('editSublista').value = t.sublista;
+      document.getElementById('editPriority').value = t.prioridade;
+      document.getElementById('editDate').value = t.data;
+      document.getElementById('editTime').value = t.hora;
+      document.getElementById('editRecurrence').value = t.recorrencia;
+      document.getElementById('editDesc').value = t.descricao;
+      
+      document.getElementById('editModal').classList.add('active');
     }
+
+    function fecharEditModal() {
+      document.getElementById('editModal').classList.remove('active');
+      tarefaEditandoId = null;
+    }
+
+    document.getElementById('editForm').onsubmit = (e) => {
+      e.preventDefault();
+      
+      const t = tarefas.find(x => x.id === tarefaEditandoId);
+      if (!t) return;
+      
+      t.titulo = document.getElementById('editTitle').value;
+      t.projeto = document.getElementById('editProject').value;
+      t.sublista = document.getElementById('editSublista').value;
+      t.prioridade = document.getElementById('editPriority').value;
+      t.data = document.getElementById('editDate').value;
+      t.hora = document.getElementById('editTime').value;
+      t.recorrencia = document.getElementById('editRecurrence').value;
+      t.descricao = document.getElementById('editDesc').value;
+      
+      fecharEditModal();
+      renderizar();
+      sincronizar();
+      mostrarMsg('✅ Tarefa atualizada!', 'success');
+    };
 
     // Sincronizar com Google Drive
     async function sincronizar() {
       try {
-        // Não precisa sincronizar por enquanto - será implementado depois
+        // Aqui você reconstruiria o JSON e salvaria
+        // Por enquanto, apenas um placeholder
       } catch (erro) {
         console.error('Erro ao sincronizar:', erro);
       }
-  }
+    }
 
     // Modal de adição
     document.getElementById('addBtn').onclick = () => document.getElementById('addModal').classList.add('active');
