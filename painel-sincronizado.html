@@ -539,7 +539,10 @@
       try {
         document.getElementById('statusText').textContent = 'Carregando...';
         
-        const response = await fetch(APPS_SCRIPT_URL + '?acao=ler');
+        const response = await fetch(APPS_SCRIPT_URL + '?acao=ler', {
+        method: 'GET',
+        mode: 'cors'
+        });
         const resultado = await response.json();
         
         if (!resultado.sucesso) {
@@ -677,12 +680,11 @@
     // Sincronizar com Google Drive
     async function sincronizar() {
       try {
-        // Aqui você reconstruiria o JSON e salvaria
-        // Por enquanto, apenas um placeholder
+        // Não precisa sincronizar por enquanto - será implementado depois
       } catch (erro) {
         console.error('Erro ao sincronizar:', erro);
       }
-    }
+  }
 
     // Modal de adição
     document.getElementById('addBtn').onclick = () => document.getElementById('addModal').classList.add('active');
