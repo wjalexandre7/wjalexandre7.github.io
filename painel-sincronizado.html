@@ -567,7 +567,7 @@
                 projeto: projeto.nome.replace(/[👨👩👧👦🕊🧗⚖️💼📋]/g, '').trim(),
                 sublista: sublista.nome,
                 prioridade: tarefa.prioridade || 'normal',
-                data: tarefa.data_vencimento,
+                data: (tarefa.data_vencimento && tarefa.data_vencimento !== 'undefined') ? tarefa.data_vencimento : '2026-04-07',
                 hora: tarefa.horario || '09:00',
                 concluida: tarefa.concluida,
                 recorrencia: tarefa.recorrencia?.frequencia || '',
