@@ -561,18 +561,24 @@
           for (const sublistaKey in projeto.sublistas) {
             const sublista = projeto.sublistas[sublistaKey];
             for (const tarefa of sublista.tarefas) {
-              tarefas.push({
-                id: id++,
-                titulo: tarefa.titulo,
-                projeto: projeto.nome.replace(/[👨👩👧👦🕊🧗⚖️💼📋]/g, '').trim(),
-                sublista: sublista.nome,
-                prioridade: tarefa.prioridade || 'normal',
-                data: (tarefa.data_vencimento && tarefa.data_vencimento !== 'undefined') ? tarefa.data_vencimento : '2026-04-07',
-                hora: tarefa.horario || '09:00',
-                concluida: tarefa.concluida,
-                recorrencia: tarefa.recorrencia?.frequencia || '',
-                descricao: tarefa.descricao || ''
-              });
+              // Corrigir data que pode vir em diferentes formatos
+let dataCorrigida = tarefa.data_vencimento;
+if (!dataCorrigida || dataCorrigida === 'undefined' || typeof dataCorrigida !== 'string' || !dataCorrigida.match(/^\d{4}-\d{2}-\d{2}$/)) {
+  dataCorrigida = new Date().toISOString().split('T')[0];
+}
+
+tarefas.push({
+  id: id++,
+  titulo: tarefa.titulo,
+  projeto: projeto.nome.replace(/[👨👩👧👦🕊🧗⚖️💼📋]/g, '').trim(),
+  sublista: sublista.nome,
+  prioridade: tarefa.prioridade || 'normal',
+  data: dataCorrigida,
+  hora: tarefa.horario || '09:00',
+  concluida: tarefa.concluida,
+  recorrencia: tarefa.recorrencia?.frequencia || '',
+  descricao: tarefa.descricao || ''
+});
             }
           }
         }
